@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "LiquidCrystalScroller.hpp"
+#include <LiquidCrystal_I2C.h>
 
 //Display constants
 #define LCDWIDTH 20
@@ -187,6 +187,10 @@ void checkInter() {
     reBtnWait = millis() + btnWaitDelay;
     //CODE
 
+    if(programState == 0) {
+      clearLeds();
+      digitalWrite(leds[encoderPos], HIGH);
+    }
   }
 
   redBtnPressed = false;
@@ -252,15 +256,9 @@ void setup() {
   //LCD init
   lcd.init();
   lcd.backlight();
-
-  //lcd.begin();
-  //lcd.scrollRow("Really long text that will definitelly overflow your display :)", 0);
-  //lcd.scrollRow("Short txt noscroll", 1);
 }
 
 void loop() {
-  //lcd.scrollLoop();
-
   //Check switches
   int switch1State = digitalRead(switch1);
   int switch2State = digitalRead(switch2);
@@ -291,6 +289,20 @@ void loop() {
       }
 
       //CODE
+
+      //Encoder clamp pos
+      if(encoderPos > 3) {
+        encoderPos = 0;
+      }
+      else if(encoderPos < 0) {
+        encoderPos = 3;
+      }
+
+      digitalWrite(rgbRed, cw);
+      lcd.setCursor(12,0);
+      lcd.print("       ");
+      lcd.setCursor(0,0);
+      lcd.print("Encoder pos: "+String(encoderPos));
     }
 
     //PIR Logic
@@ -299,6 +311,12 @@ void loop() {
       pirLaststate = pirState;
       
       //CODE
+      lcd.setCursor(0,1);
+      lcd.print("          ");
+      lcd.setCursor(0,1);
+      lcd.print("PIR: ");
+      lcd.print(pirState);
+      digitalWrite(rgbBlue, pirState);
     }
 
     //Shock sensor
@@ -307,8 +325,23 @@ void loop() {
       posLaststate = posState;
 
       //CODE
+      lcd.setCursor(0,2);
+      lcd.print("          ");
+      lcd.setCursor(0,2);
+      lcd.print("Pos: ");
+      lcd.print(posState);
+      digitalWrite(rgbGreen, posState);
     }
   }
+
+/*  
+  if(animWait < millis()) {
+    animWait = millis() + animDelay;
+    lcd.setCursor(1,0);
+    lcd.print("Animovany text juu toci se jak petr");
+  }
+*/
+
 
 
   //Check buttons and interrupts
