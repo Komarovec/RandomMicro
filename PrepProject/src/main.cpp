@@ -82,7 +82,7 @@ unsigned long blackBtnWait = 0;
 unsigned long reBtnWait = 0;
 
 unsigned long animWait = 0;
-int animDelay = 200;
+int animDelay = 300;
 
 //Rotary encoder vars
 int dtLaststate = 0;
@@ -97,6 +97,10 @@ int posLaststate = 0;
 
 //Program state
 int programState = 0;
+
+//Program 2 vars
+int animShift = 0;
+String rowText = "";
 
 //---------------------------------
 //---------- ACTIVE CODE ----------
@@ -267,29 +271,56 @@ void loop() {
     lastSwitch1State = switch1State;
     lastSwitch2State = switch2State;
     programState = toDec(switch1State, switch2State);
+
+    animShift = 0;
+    lcd.clear();
   } 
 
-/* ----------------------------------
- * ---------- MAIN LOGIC ------------
- * ---------------------------------- */
+  //Changed vars
+  bool encoderChange = false;
+  bool pirChange = false;
+  bool posChange = false;
+
+  //Rotary encoder logic
+  int dtNow = digitalRead(dt);
+  int clkNow = digitalRead(clk);
+  if(dtNow != dtLaststate) {
+    encoderChange = true;
+
+    dtLaststate = dtNow;
+    if(clkNow == dtNow) {
+      encoderPos++;
+      cw = true;
+    }
+    else {
+      encoderPos--;
+      cw = false;
+    }
+  }
+
+  //PIR Logic
+  int pirState = digitalRead(pir);
+  if(pirState != pirLaststate) {
+    pirChange = true;
+
+    pirLaststate = pirState;
+  }
+
+  //Shock sensor
+  int posState = digitalRead(pos);
+  if(posState != posLaststate) {
+    posChange = true;
+
+    posLaststate = posState;
+  }
+
+  /* ----------------------------------
+  * ---------- MAIN LOGIC ------------
+  * ---------------------------------- */
   if(programState == 0) {
 
     //Rotary encoder logic
-    int dtNow = digitalRead(dt);
-    int clkNow = digitalRead(clk);
-    if(dtNow != dtLaststate) {
-      dtLaststate = dtNow;
-      if(clkNow == dtNow) {
-        encoderPos++;
-        cw = true;
-      }
-      else {
-        encoderPos--;
-        cw = false;
-      }
-
-      //CODE
-
+    if(encoderChange) {
       //Encoder clamp pos
       if(encoderPos > 3) {
         encoderPos = 0;
@@ -306,11 +337,7 @@ void loop() {
     }
 
     //PIR Logic
-    int pirState = digitalRead(pir);
-    if(pirState != pirLaststate) {
-      pirLaststate = pirState;
-      
-      //CODE
+    if(pirChange) {
       lcd.setCursor(0,1);
       lcd.print("          ");
       lcd.setCursor(0,1);
@@ -321,10 +348,7 @@ void loop() {
 
     //Shock sensor
     int posState = digitalRead(pos);
-    if(posState != posLaststate) {
-      posLaststate = posState;
-
-      //CODE
+    if(posChange) {
       lcd.setCursor(0,2);
       lcd.print("          ");
       lcd.setCursor(0,2);
@@ -333,15 +357,33 @@ void loop() {
       digitalWrite(rgbGreen, posState);
     }
   }
+  else if(programState == 1) {
+    if(animWait < millis()) {
+      animWait = millis() + animDelay;
 
-/*  
-  if(animWait < millis()) {
-    animWait = millis() + animDelay;
-    lcd.setCursor(1,0);
-    lcd.print("Animovany text juu toci se jak petr");
+      String orig = "PIR: "+String(pirState)+"  |  Encoder pos: "+String(encoderPos)+"  |  Shock detect: "+String(posState);
+      String newText = "                   " + orig + " "; 
+      rowText = newText.substring(0+animShift,19+animShift);
+
+      lcd.print("                    ");
+      lcd.setCursor(0,0);
+      lcd.print(rowText);
+
+      animShift++;
+      if(animShift > newText.length()) {
+        animShift = 0;
+      }
+    }
+    else if(encoderChange || posChange || pirChange) {
+      String orig = "PIR: "+String(pirState)+"  |  Encoder pos: "+String(encoderPos)+"  |  Shock detect: "+String(posState);
+      String newText = "                   " + orig + " "; 
+      rowText = newText.substring(0+animShift,19+animShift);
+
+      lcd.print("                    ");
+      lcd.setCursor(0,0);
+      lcd.print(rowText);
+    }
   }
-*/
-
 
 
   //Check buttons and interrupts
