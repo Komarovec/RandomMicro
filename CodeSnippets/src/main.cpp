@@ -271,43 +271,58 @@ void loop() {
     programState = toDec(switch1State, switch2State);
   } 
 
+  //Changed vars
+  bool encoderChange = false;
+  bool pirChange = false;
+  bool posChange = false;
+
+  //Rotary encoder logic
+  int dtNow = digitalRead(dt);
+  int clkNow = digitalRead(clk);
+  if(dtNow != dtLaststate) {
+    encoderChange = true;
+
+    dtLaststate = dtNow;
+    if(clkNow == dtNow) {
+      encoderPos++;
+      cw = true;
+    }
+    else {
+      encoderPos--;
+      cw = false;
+    }
+  }
+
+  //PIR Logic
+  int pirState = digitalRead(pir);
+  if(pirState != pirLaststate) {
+    pirChange = true;
+
+    pirLaststate = pirState;
+  }
+
+  //Shock sensor
+  int posState = digitalRead(pos);
+  if(posState != posLaststate) {
+    posChange = true;
+
+    posLaststate = posState;
+  }
+
 /* ----------------------------------
  * ---------- MAIN LOGIC ------------
  * ---------------------------------- */
   if(programState == 0) {
 
-    //Rotary encoder logic
-    int dtNow = digitalRead(dt);
-    int clkNow = digitalRead(clk);
-    if(dtNow != dtLaststate) {
-      dtLaststate = dtNow;
-      if(clkNow == dtNow) {
-        encoderPos++;
-        cw = true;
-      }
-      else {
-        encoderPos--;
-        cw = false;
-      }
+  }
+  else if(programState == 1) {
 
-      //CODE
-    }
+  }
+  else if(programState == 2) {
 
-    //PIR Logic
-    int pirState = digitalRead(pir);
-    if(pirState != pirLaststate) {
-      pirLaststate = pirState;
-      
-      //CODE
-    }
+  }
+  else if(programState == 3) {
 
-    //Shock sensor
-    int posState = digitalRead(pos);
-    if(posState != posLaststate) {
-      posLaststate = posState;
-
-      //CODE
-    }
   }
 
 

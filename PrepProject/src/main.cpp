@@ -50,6 +50,12 @@ const int rgbLeds[] = {32,33,34};
 //---------- END OF CONSTANTS ----------
 //--------------------------------------
 
+
+
+
+
+
+
 //--------------------------------------
 //---------- VARS / OBJECTS ------------
 //--------------------------------------
@@ -63,6 +69,18 @@ bool redBtnPressed = false;
 bool blueBtnPressed = false;
 bool greenBtnPressed = false;
 bool blackBtnPressed = false;
+
+//Toggle Button Flags
+bool redBtnToggle = false;
+bool blueBtnToggle = false;
+bool greenBtnToggle = false;
+bool blackBtnToggle = false;
+
+//Buttons laststates
+bool redBtnLaststate = false;
+bool blueBtnLaststate = false;
+bool greenBtnLaststate = false;
+bool blackBtnLaststate = false;
 
 //Flags --> Non-Interrupts / States
 bool displayChanged = false; //Indicates change of the display
@@ -82,7 +100,7 @@ unsigned long blackBtnWait = 0;
 unsigned long reBtnWait = 0;
 
 unsigned long animWait = 0;
-int animDelay = 300;
+int animDelay = 400;
 
 //Rotary encoder vars
 int dtLaststate = 0;
@@ -99,8 +117,24 @@ int posLaststate = 0;
 int programState = 0;
 
 //Program 2 vars
-int animShift = 0;
-String rowText = "";
+int animShiftRow1 = 0;
+int animShiftRow2 = 0;
+int animShiftRow3 = 0;
+int animShiftRow4 = 0;
+int animState = 0;
+
+String row1Text = "";
+String row2Text = "";
+String row3Text = "";
+String row4Text = "";
+
+
+//LOOP COUNTING
+int loops = 0;
+unsigned long loopWait = 0;
+int loopDelay = 1000;
+
+
 
 //---------------------------------
 //---------- ACTIVE CODE ----------
@@ -156,6 +190,10 @@ void checkInter() {
   if(redBtnPressed && redBtnWait < millis()) {
     redBtnPressed = false;
     redBtnWait = millis() + btnWaitDelay;
+
+    //Toggle logic
+    redBtnToggle = !redBtnToggle;
+
     //CODE
 
   }
@@ -164,6 +202,10 @@ void checkInter() {
   if(blueBtnPressed && blueBtnWait < millis()) {
     blueBtnPressed = false;
     blueBtnWait = millis() + btnWaitDelay;
+
+    //Toggle logic
+    blueBtnToggle = !blueBtnToggle;
+
     //CODE
 
   }
@@ -172,6 +214,10 @@ void checkInter() {
   if(greenBtnPressed && greenBtnWait < millis()) {
     greenBtnPressed = false;
     greenBtnWait = millis() + btnWaitDelay;
+
+    //Toggle logic
+    greenBtnToggle = !greenBtnToggle;
+
     //CODE
 
   }
@@ -180,6 +226,10 @@ void checkInter() {
   if(blackBtnPressed && blackBtnWait < millis()) {
     blackBtnPressed = false;
     blackBtnWait = millis() + btnWaitDelay;
+
+    //Toggle logic
+    blackBtnToggle = !blackBtnToggle;
+
     //CODE
 
   }
@@ -263,6 +313,19 @@ void setup() {
 }
 
 void loop() {
+  //Loop counting
+  loops++;
+  if(loopWait < millis()) {
+    loopWait = loopDelay + millis();
+
+    lcd.setCursor(0,3);
+    lcd.print("                    ");
+    lcd.setCursor(0,3);
+    lcd.print("Loops/ms: "+String(loops/1000));
+    loops = 0;
+  }
+
+
   //Check switches
   int switch1State = digitalRead(switch1);
   int switch2State = digitalRead(switch2);
@@ -272,7 +335,7 @@ void loop() {
     lastSwitch2State = switch2State;
     programState = toDec(switch1State, switch2State);
 
-    animShift = 0;
+    animShiftRow1 = 0;
     lcd.clear();
   } 
 
@@ -331,7 +394,7 @@ void loop() {
 
       digitalWrite(rgbRed, cw);
       lcd.setCursor(12,0);
-      lcd.print("       ");
+      lcd.print("        ");
       lcd.setCursor(0,0);
       lcd.print("Encoder pos: "+String(encoderPos));
     }
@@ -361,27 +424,39 @@ void loop() {
     if(animWait < millis()) {
       animWait = millis() + animDelay;
 
-      String orig = "PIR: "+String(pirState)+"  |  Encoder pos: "+String(encoderPos)+"  |  Shock detect: "+String(posState);
-      String newText = "                   " + orig + " "; 
-      rowText = newText.substring(0+animShift,19+animShift);
+      //Rotace textu 1
+      String orig1 = "PIR: "+String(pirState)+"  |  Encoder pos: "+String(encoderPos)+"  |  Shock detect: "+String(posState);
+      String new1Text = "                   " + orig1 + " "; 
+      row1Text = new1Text.substring(0+animShiftRow1,19+animShiftRow1);
 
-      lcd.print("                    ");
+      //Rotace textu 2
+      String orig2 = "redBtn: "+String(redBtnToggle)+"  |  blueBtn: "+String(blueBtnToggle)+"  |  greenBtn: "+String(greenBtnToggle)+"  |  blackBtn: "+String(blackBtnToggle);
+      String new2Text = "                   " + orig2 + " "; 
+      row2Text = new2Text.substring(0+animShiftRow1,19+animShiftRow1);
+
+      //Samotny vypis
       lcd.setCursor(0,0);
-      lcd.print(rowText);
+      lcd.print(row1Text);
 
-      animShift++;
-      if(animShift > newText.length()) {
-        animShift = 0;
+      lcd.setCursor(0,1);
+      lcd.print(row2Text);
+
+      //Pričtení do rotace
+      animShiftRow1++;
+
+      //Pokud již text "zajel" tak resetuj rotaci
+      if(animShiftRow1 > new2Text.length()) {
+        animShiftRow1 = 0;
       }
     }
     else if(encoderChange || posChange || pirChange) {
+      //Pokud nastala zmena v hodnotach, tak vypis znovu BEZ rotace.
       String orig = "PIR: "+String(pirState)+"  |  Encoder pos: "+String(encoderPos)+"  |  Shock detect: "+String(posState);
       String newText = "                   " + orig + " "; 
-      rowText = newText.substring(0+animShift,19+animShift);
+      row1Text = newText.substring(0+animShiftRow1,19+animShiftRow1);
 
-      lcd.print("                    ");
       lcd.setCursor(0,0);
-      lcd.print(rowText);
+      lcd.print(row1Text);
     }
   }
 
