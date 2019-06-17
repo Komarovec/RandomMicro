@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Wire.h>
-#include "LiquidCrystalScroller.hpp"
+#include <LiquidCrystal_I2C.h>
 
 //Display constants
 #define LCDWIDTH 20
@@ -50,6 +50,12 @@ const int rgbLeds[] = {32,33,34};
 //---------- END OF CONSTANTS ----------
 //--------------------------------------
 
+
+
+
+
+
+
 //--------------------------------------
 //---------- VARS / OBJECTS ------------
 //--------------------------------------
@@ -63,6 +69,25 @@ bool redBtnPressed = false;
 bool blueBtnPressed = false;
 bool greenBtnPressed = false;
 bool blackBtnPressed = false;
+
+bool reBtnPressed = false;
+bool reBtnPressedlast = false;
+
+//Toggle Button Flags
+bool redBtnToggle = false;
+bool blueBtnToggle = false;
+bool greenBtnToggle = false;
+bool blackBtnToggle = false;
+
+bool reBtnToggle = false;
+
+//Buttons laststates
+bool redBtnLaststate = false;
+bool blueBtnLaststate = false;
+bool greenBtnLaststate = false;
+bool blackBtnLaststate = false;
+
+bool reBtnLaststate = false;
 
 //Flags --> Non-Interrupts / States
 bool displayChanged = false; //Indicates change of the display
@@ -82,7 +107,7 @@ unsigned long blackBtnWait = 0;
 unsigned long reBtnWait = 0;
 
 unsigned long animWait = 0;
-int animDelay = 200;
+int animDelay = 400;
 
 //Rotary encoder vars
 int dtLaststate = 0;
@@ -95,7 +120,12 @@ int pirLaststate = 0;
 //Pos vars
 int posLaststate = 0;
 
-//Program state
+//LOOP COUNTING
+int loops = 0;
+unsigned long loopWait = 0;
+int loopDelay = 1000;
+
+//----------- Program state -----------
 int programState = 0;
 
 //---------------------------------
@@ -152,42 +182,59 @@ void checkInter() {
   if(redBtnPressed && redBtnWait < millis()) {
     redBtnPressed = false;
     redBtnWait = millis() + btnWaitDelay;
-    //CODE
 
+    //Toggle logic
+    redBtnToggle = !redBtnToggle;
+
+    //CODE
   }
 
   //BLUE BUTTON
   if(blueBtnPressed && blueBtnWait < millis()) {
     blueBtnPressed = false;
     blueBtnWait = millis() + btnWaitDelay;
-    //CODE
 
+    //Toggle logic
+    blueBtnToggle = !blueBtnToggle;
+
+    //CODE
   }
 
   //GREEN BUTTON
   if(greenBtnPressed && greenBtnWait < millis()) {
     greenBtnPressed = false;
     greenBtnWait = millis() + btnWaitDelay;
-    //CODE
 
+    //Toggle logic
+    greenBtnToggle = !greenBtnToggle;
+
+    //CODE
   }
 
   //BLACK BUTTON
   if(blackBtnPressed && blackBtnWait < millis()) {
     blackBtnPressed = false;
     blackBtnWait = millis() + btnWaitDelay;
-    //CODE
 
+    //Toggle logic
+    blackBtnToggle = !blackBtnToggle;
+
+    //CODE
   }
 
   //ENCODER BUTTON
-  int reBtnPressed = !digitalRead(reBtn);
-  if(reBtnPressed && reBtnWait < millis()) {
+  reBtnPressed = !digitalRead(reBtn);
+  if(reBtnPressed && !reBtnPressedlast && reBtnWait < millis()) {
     reBtnPressed = false;
     reBtnWait = millis() + btnWaitDelay;
-    //CODE
 
-  }
+
+		//Toggle logic
+		reBtnToggle = !reBtnToggle;
+  
+		//CODE
+	}
+	reBtnPressedlast = !digitalRead(reBtn);
 
   redBtnPressed = false;
   blueBtnPressed = false;
@@ -252,14 +299,19 @@ void setup() {
   //LCD init
   lcd.init();
   lcd.backlight();
-
-  //lcd.begin();
-  //lcd.scrollRow("Really long text that will definitelly overflow your display :)", 0);
-  //lcd.scrollRow("Short txt noscroll", 1);
 }
 
 void loop() {
-  //lcd.scrollLoop();
+  //Changed vars
+  bool encoderChange = false;
+  bool pirChange = false;
+  bool posChange = false;
+
+	bool redBtnChanged = false;
+	bool blueBtnChanged = false;
+	bool greenBtnChanged = false;
+	bool blackBtnChanged = false;
+	bool reBtnChanged = false;
 
   //Check switches
   int switch1State = digitalRead(switch1);
@@ -269,12 +321,15 @@ void loop() {
     lastSwitch1State = switch1State;
     lastSwitch2State = switch2State;
     programState = toDec(switch1State, switch2State);
-  } 
 
-  //Changed vars
-  bool encoderChange = false;
-  bool pirChange = false;
-  bool posChange = false;
+    encoderChange = true;
+    pirChange = true;
+    posChange = true;
+
+    lcd.clear();
+    clearLeds();
+    clearRgbLeds();
+  } 
 
   //Rotary encoder logic
   int dtNow = digitalRead(dt);
@@ -308,6 +363,30 @@ void loop() {
 
     posLaststate = posState;
   }
+
+	//Buttons check
+	if(redBtnToggle != redBtnLaststate) {
+		redBtnLaststate = redBtnToggle;
+		redBtnChanged = true;
+	}
+	if(blueBtnToggle != blueBtnLaststate) {
+		blueBtnLaststate = blueBtnToggle;
+		blueBtnChanged = true;
+	}
+	if(greenBtnToggle != greenBtnLaststate) {
+		greenBtnLaststate = greenBtnToggle;
+		greenBtnChanged = true;
+	}
+	if(blackBtnToggle != blackBtnLaststate) {
+		blackBtnLaststate = blackBtnToggle;
+		blackBtnChanged = true;
+	}
+	if(reBtnToggle != reBtnLaststate) {
+		reBtnLaststate = reBtnToggle;
+		reBtnChanged = true;
+	}
+
+
 
 /* ----------------------------------
  * ---------- MAIN LOGIC ------------

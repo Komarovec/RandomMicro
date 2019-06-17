@@ -70,17 +70,24 @@ bool blueBtnPressed = false;
 bool greenBtnPressed = false;
 bool blackBtnPressed = false;
 
+bool reBtnPressed = false;
+bool reBtnPressedlast = false;
+
 //Toggle Button Flags
 bool redBtnToggle = false;
 bool blueBtnToggle = false;
 bool greenBtnToggle = false;
 bool blackBtnToggle = false;
 
+bool reBtnToggle = false;
+
 //Buttons laststates
 bool redBtnLaststate = false;
 bool blueBtnLaststate = false;
 bool greenBtnLaststate = false;
 bool blackBtnLaststate = false;
+
+bool reBtnLaststate = false;
 
 //Flags --> Non-Interrupts / States
 bool displayChanged = false; //Indicates change of the display
@@ -113,10 +120,15 @@ int pirLaststate = 0;
 //Pos vars
 int posLaststate = 0;
 
-//Program state
+//LOOP COUNTING
+int loops = 0;
+unsigned long loopWait = 0;
+int loopDelay = 1000;
+
+//----------- Program state -----------
 int programState = 0;
 
-//Program 2 vars
+//----------- Program 2 vars -----------
 int animShiftRow1 = 0;
 int animShiftRow2 = 0;
 int animShiftRow3 = 0;
@@ -128,11 +140,21 @@ String row2Text = "";
 String row3Text = "";
 String row4Text = "";
 
+//----------- Program 3 vars -----------
 
-//LOOP COUNTING
-int loops = 0;
-unsigned long loopWait = 0;
-int loopDelay = 1000;
+//LCD CustomChar
+byte arrow[] = {
+  B00000,
+  B00100,
+  B00110,
+  B11111,
+  B11111,
+  B00110,
+  B00100,
+  B00000
+};
+
+bool ledsStates[] = {false,false,false,false};
 
 
 
@@ -195,7 +217,6 @@ void checkInter() {
     redBtnToggle = !redBtnToggle;
 
     //CODE
-
   }
 
   //BLUE BUTTON
@@ -207,7 +228,6 @@ void checkInter() {
     blueBtnToggle = !blueBtnToggle;
 
     //CODE
-
   }
 
   //GREEN BUTTON
@@ -219,7 +239,6 @@ void checkInter() {
     greenBtnToggle = !greenBtnToggle;
 
     //CODE
-
   }
 
   //BLACK BUTTON
@@ -231,21 +250,21 @@ void checkInter() {
     blackBtnToggle = !blackBtnToggle;
 
     //CODE
-
   }
 
   //ENCODER BUTTON
-  int reBtnPressed = !digitalRead(reBtn);
-  if(reBtnPressed && reBtnWait < millis()) {
+  reBtnPressed = !digitalRead(reBtn);
+  if(reBtnPressed && !reBtnPressedlast && reBtnWait < millis()) {
     reBtnPressed = false;
     reBtnWait = millis() + btnWaitDelay;
-    //CODE
 
-    if(programState == 0) {
-      clearLeds();
-      digitalWrite(leds[encoderPos], HIGH);
-    }
-  }
+
+		//Toggle logic
+		reBtnToggle = !reBtnToggle;
+  
+		//CODE
+	}
+	reBtnPressedlast = !digitalRead(reBtn);
 
   redBtnPressed = false;
   blueBtnPressed = false;
@@ -309,11 +328,13 @@ void setup() {
 
   //LCD init
   lcd.init();
+  lcd.createChar(0, arrow);
   lcd.backlight();
 }
 
 void loop() {
   //Loop counting
+  /*  
   loops++;
   if(loopWait < millis()) {
     loopWait = loopDelay + millis();
@@ -324,7 +345,18 @@ void loop() {
     lcd.print("Loops/ms: "+String(loops/1000));
     loops = 0;
   }
+  */
 
+  //Changed vars
+  bool encoderChange = false;
+  bool pirChange = false;
+  bool posChange = false;
+
+	bool redBtnChanged = false;
+	bool blueBtnChanged = false;
+	bool greenBtnChanged = false;
+	bool blackBtnChanged = false;
+	bool reBtnChanged = false;
 
   //Check switches
   int switch1State = digitalRead(switch1);
@@ -335,14 +367,15 @@ void loop() {
     lastSwitch2State = switch2State;
     programState = toDec(switch1State, switch2State);
 
+    encoderChange = true;
+    pirChange = true;
+    posChange = true;
+
     animShiftRow1 = 0;
     lcd.clear();
+    clearLeds();
+    clearRgbLeds();
   } 
-
-  //Changed vars
-  bool encoderChange = false;
-  bool pirChange = false;
-  bool posChange = false;
 
   //Rotary encoder logic
   int dtNow = digitalRead(dt);
@@ -377,6 +410,29 @@ void loop() {
     posLaststate = posState;
   }
 
+	//Buttons check
+	if(redBtnToggle != redBtnLaststate) {
+		redBtnLaststate = redBtnToggle;
+		redBtnChanged = true;
+	}
+	if(blueBtnToggle != blueBtnLaststate) {
+		blueBtnLaststate = blueBtnToggle;
+		blueBtnChanged = true;
+	}
+	if(greenBtnToggle != greenBtnLaststate) {
+		greenBtnLaststate = greenBtnToggle;
+		greenBtnChanged = true;
+	}
+	if(blackBtnToggle != blackBtnLaststate) {
+		blackBtnLaststate = blackBtnToggle;
+		blackBtnChanged = true;
+	}
+	if(reBtnToggle != reBtnLaststate) {
+		reBtnLaststate = reBtnToggle;
+		reBtnChanged = true;
+	}
+
+
   /* ----------------------------------
   * ---------- MAIN LOGIC ------------
   * ---------------------------------- */
@@ -398,6 +454,12 @@ void loop() {
       lcd.setCursor(0,0);
       lcd.print("Encoder pos: "+String(encoderPos));
     }
+
+		//Encoder click
+		if(reBtnChanged) { 
+		  clearLeds();
+      digitalWrite(leds[encoderPos], HIGH);
+		}
 
     //PIR Logic
     if(pirChange) {
@@ -457,6 +519,48 @@ void loop() {
 
       lcd.setCursor(0,0);
       lcd.print(row1Text);
+    }
+  }
+
+  else if(programState == 2) {
+    if(encoderPos < 0) {
+      encoderPos = 0;
+    }
+
+		if(reBtnChanged) {
+			if(encoderPos < 4) {
+				ledsStates[encoderPos] = !ledsStates[encoderPos]; 
+				digitalWrite(leds[encoderPos], ledsStates[encoderPos]);
+			}
+		}
+
+    if(encoderChange || reBtnChanged) { 
+      if(encoderPos < 4) {
+				
+        lcd.setCursor(0,0);
+        lcd.print(" ");
+        lcd.setCursor(0,1);
+        lcd.print(" ");
+        lcd.setCursor(0,2);
+        lcd.print(" ");
+        lcd.setCursor(0,3);
+        lcd.print(" ");
+
+        lcd.setCursor(0,encoderPos);
+        lcd.write(0);
+
+        lcd.setCursor(2,0);
+        lcd.print("RED LED: "+String(ledsStates[0] ? "ON " : "OFF"));
+      
+        lcd.setCursor(2,1);
+        lcd.print("GREEN LED: "+String(ledsStates[1] ? "ON " : "OFF"));
+
+        lcd.setCursor(2,2);
+        lcd.print("BLUE LED: "+String(ledsStates[2] ? "ON " : "OFF"));
+
+        lcd.setCursor(2,3);
+        lcd.print("YELLOW LED: "+String(ledsStates[3] ? "ON " : "OFF"));
+      }
     }
   }
 
