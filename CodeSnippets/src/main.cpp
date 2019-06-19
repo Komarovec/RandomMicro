@@ -71,7 +71,6 @@ bool greenBtnPressed = false;
 bool blackBtnPressed = false;
 
 bool reBtnPressed = false;
-bool reBtnPressedlast = false;
 
 //Toggle Button Flags
 bool redBtnToggle = false;
@@ -97,14 +96,34 @@ bool redLedSwitching = false;
 int lastSwitch1State = false;
 int lastSwitch2State = false;
 
+//Flags change indicators
+bool encoderChange = false;
+bool pirChange = false;
+bool posChange = false;
+
+bool redBtnChanged = false;
+bool blueBtnChanged = false;
+bool greenBtnChanged = false;
+bool blackBtnChanged = false;
+bool reBtnChanged = false;
+
 //Timers
-int btnWaitDelay = 200;
+int btnWaitDelay = 100;
+
 unsigned long redBtnWait = 0;
+bool redBtnWaiting = false;
+
 unsigned long blueBtnWait = 0;
+bool blueBtnWaiting = false;
+
 unsigned long greenBtnWait = 0;
+bool greenBtnWaiting = false;
+
 unsigned long blackBtnWait = 0;
+bool blackBtnWaiting = false;
 
 unsigned long reBtnWait = 0;
+bool reBtnPressedlast = false;
 
 unsigned long animWait = 0;
 int animDelay = 400;
@@ -127,6 +146,38 @@ int loopDelay = 1000;
 
 //----------- Program state -----------
 int programState = 0;
+
+//----------- Program 2 vars -----------
+int animShiftRow1 = 0;
+int animShiftRow2 = 0;
+int animShiftRow3 = 0;
+int animShiftRow4 = 0;
+int animState = 0;
+
+String row1Text = "";
+String row2Text = "";
+String row3Text = "";
+String row4Text = "";
+
+//----------- Program 3 vars -----------
+
+//LCD CustomChar
+byte arrow[] = {
+  B00000,
+  B00100,
+  B00110,
+  B11111,
+  B11111,
+  B00110,
+  B00100,
+  B00000
+};
+
+bool ledsStates[] = {false,false,false,false};
+bool rgbLedsStates[] = {false,false,false};
+int menuState = 0;
+int menuPage = 0;
+
 
 //---------------------------------
 //---------- ACTIVE CODE ----------
@@ -179,47 +230,51 @@ void clearRgbLeds() {
 //Interrupt check --> Buttons
 void checkInter() {
   //RED BUTTON
-  if(redBtnPressed && redBtnWait < millis()) {
-    redBtnPressed = false;
+  if(redBtnPressed && !redBtnWaiting) {
     redBtnWait = millis() + btnWaitDelay;
-
-    //Toggle logic
-    redBtnToggle = !redBtnToggle;
-
-    //CODE
+    redBtnWaiting = true;
   }
-
+  else if(redBtnWait < millis() && redBtnWaiting) {
+    if(digitalRead(redBtn) == LOW) {
+      redBtnToggle = !redBtnToggle;
+      redBtnWaiting = false;
+    }
+  }
+  
   //BLUE BUTTON
-  if(blueBtnPressed && blueBtnWait < millis()) {
-    blueBtnPressed = false;
+  if(blueBtnPressed && !blueBtnWaiting) {
     blueBtnWait = millis() + btnWaitDelay;
-
-    //Toggle logic
-    blueBtnToggle = !blueBtnToggle;
-
-    //CODE
+    blueBtnWaiting = true;
+  }
+  else if(blueBtnWait < millis() && blueBtnWaiting) {
+    if(digitalRead(blueBtn) == LOW) {
+      blueBtnToggle = !blueBtnToggle;
+      blueBtnWaiting = false;
+    }
   }
 
   //GREEN BUTTON
-  if(greenBtnPressed && greenBtnWait < millis()) {
-    greenBtnPressed = false;
+  if(greenBtnPressed && !greenBtnWaiting) {
     greenBtnWait = millis() + btnWaitDelay;
-
-    //Toggle logic
-    greenBtnToggle = !greenBtnToggle;
-
-    //CODE
+    greenBtnWaiting = true;
+  }
+  else if(greenBtnWait < millis() && greenBtnWaiting) {
+    if(digitalRead(greenBtn) == LOW) {
+      greenBtnToggle = !greenBtnToggle;
+      greenBtnWaiting = false;
+    }
   }
 
   //BLACK BUTTON
-  if(blackBtnPressed && blackBtnWait < millis()) {
-    blackBtnPressed = false;
+  if(blackBtnPressed && !blackBtnWaiting) {
     blackBtnWait = millis() + btnWaitDelay;
-
-    //Toggle logic
-    blackBtnToggle = !blackBtnToggle;
-
-    //CODE
+    blackBtnWaiting = true;
+  }
+  else if(blackBtnWait < millis() && blackBtnWaiting) {
+    if(digitalRead(blackBtn) == LOW) {
+      blackBtnToggle = !blackBtnToggle;
+      blackBtnWaiting = false;
+    }
   }
 
   //ENCODER BUTTON
@@ -228,7 +283,6 @@ void checkInter() {
     reBtnPressed = false;
     reBtnWait = millis() + btnWaitDelay;
 
-
 		//Toggle logic
 		reBtnToggle = !reBtnToggle;
   
@@ -236,6 +290,8 @@ void checkInter() {
 	}
 	reBtnPressedlast = !digitalRead(reBtn);
 
+
+  //Deactivate any non-actual presses
   redBtnPressed = false;
   blueBtnPressed = false;
   greenBtnPressed = false;
@@ -275,10 +331,10 @@ void setup() {
   pinMode(yellowLed, OUTPUT);
 
   //Interrupts (Buttons) init
-  attachInterrupt(digitalPinToInterrupt(redBtn), redBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(blueBtn), blueBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(greenBtn), greenBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(blackBtn), blackBtnCallback, RISING);
+  attachInterrupt(digitalPinToInterrupt(redBtn), redBtnCallback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(blueBtn), blueBtnCallback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(greenBtn), greenBtnCallback, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(blackBtn), blackBtnCallback, CHANGE);
 
   //Rotary encoder
   pinMode(dt, INPUT);
@@ -298,20 +354,24 @@ void setup() {
 
   //LCD init
   lcd.init();
+  lcd.createChar(0, arrow);
   lcd.backlight();
 }
 
 void loop() {
-  //Changed vars
-  bool encoderChange = false;
-  bool pirChange = false;
-  bool posChange = false;
+   //Check buttons and interrupts
+  checkInter();
 
-	bool redBtnChanged = false;
-	bool blueBtnChanged = false;
-	bool greenBtnChanged = false;
-	bool blackBtnChanged = false;
-	bool reBtnChanged = false;
+  //Changed vars
+  encoderChange = false;
+  pirChange = false;
+  posChange = false;
+
+	redBtnChanged = false;
+	blueBtnChanged = false;
+	greenBtnChanged = false;
+	blackBtnChanged = false;
+	reBtnChanged = false;
 
   //Check switches
   int switch1State = digitalRead(switch1);
@@ -326,6 +386,7 @@ void loop() {
     pirChange = true;
     posChange = true;
 
+    animShiftRow1 = 0;
     lcd.clear();
     clearLeds();
     clearRgbLeds();
@@ -386,25 +447,9 @@ void loop() {
 		reBtnChanged = true;
 	}
 
-
-
-/* ----------------------------------
- * ---------- MAIN LOGIC ------------
- * ---------------------------------- */
-  if(programState == 0) {
-
-  }
-  else if(programState == 1) {
-
-  }
-  else if(programState == 2) {
-
-  }
-  else if(programState == 3) {
-
-  }
-
-
-  //Check buttons and interrupts
-  checkInter();
+  /* ----------------------------------
+  * ---------- MAIN LOGIC ------------
+  * ---------------------------------- */
+  
+  //CODE
 }

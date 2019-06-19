@@ -49,20 +49,23 @@ byte fourthChar[] = {
   B11111
 };
 
-//Constants
+//Buttons
 const int redBtn = 3; //INT 5
 const int blueBtn = 2; //INT 4
 const int greenBtn = 18; //INT 3
 const int blackBtn = 19; //INT 2
+
+//Two-pos switches
 const int switch1 = 53; //SWITCH1
 const int switch2 = 49; //SWITCH2
 const int powerPin = 51; //PP
 
+//Leds
 const int redLed = 13;
-const int greenLed = 12;
-const int blueLed = 11;
+const int greenLed  = 12;
+const int blueLed  = 11;
 const int yellowLed = 10;
-const int leds[4] = {13,12,11,10};
+const int leds[] = {13,12,11,10};
 
 //Flags --> Interrupts
 bool redBtnPressed = false;
@@ -278,6 +281,8 @@ void setup() {
   lcd.createChar(2, thirdChar);
   lcd.createChar(3, fourthChar);
 
+
+  lcd.backlight();
 }
 
 void loop() {
