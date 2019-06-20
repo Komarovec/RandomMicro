@@ -64,12 +64,7 @@ const int rgbLeds[] = {32,33,34};
 LiquidCrystal_I2C lcd(0x27, 20, 4);
 //LiquidCrystalScroller lcd = LiquidCrystalScroller(0x27,20,4);
 
-//Flags --> Interrupts
-bool redBtnPressed = false;
-bool blueBtnPressed = false;
-bool greenBtnPressed = false;
-bool blackBtnPressed = false;
-
+//Flag for encoder
 bool reBtnPressed = false;
 
 //Toggle Button Flags
@@ -80,7 +75,7 @@ bool blackBtnToggle = false;
 
 bool reBtnToggle = false;
 
-//Buttons laststates
+//Buttons laststates of toggles
 bool redBtnLaststate = false;
 bool blueBtnLaststate = false;
 bool greenBtnLaststate = false;
@@ -89,10 +84,6 @@ bool blackBtnLaststate = false;
 bool reBtnLaststate = false;
 
 //Flags --> Non-Interrupts / States
-bool displayChanged = false; //Indicates change of the display
-bool redLedState = false;
-bool redLedSwitching = false;
-
 int lastSwitch1State = false;
 int lastSwitch2State = false;
 
@@ -108,16 +99,9 @@ bool blackBtnChanged = false;
 bool reBtnChanged = false;
 
 //Timers
-//Debounce delay
-int btnWaitDelay = 150;
-unsigned long redBtnWait = 0;
-unsigned long blueBtnWait = 0;
-unsigned long greenBtnWait = 0;
-unsigned long blackBtnWait = 0;
+//Debounce delay --> encoder
+int btnWaitDelay = 50;
 unsigned long reBtnWait = 0;
-
-unsigned long animWait = 0;
-int animDelay = 400;
 
 //Rotary encoder vars
 int reBtnPressedlast = 0;
@@ -136,15 +120,20 @@ int pirState = 0;
 int posLaststate = 0;
 int posState = 0;
 
-//LOOP COUNTING
-int loops = 0;
-unsigned long loopWait = 0;
-int loopDelay = 1000;
-
 //----------- Program state -----------
 int programState = 0;
 
+
+
+//----------- Program 1 vars -----------
+
+
+
+
 //----------- Program 2 vars -----------
+unsigned long animWait = 0;
+int animDelay = 400;
+
 int animShiftRow1 = 0;
 int animShiftRow2 = 0;
 int animShiftRow3 = 0;
@@ -156,8 +145,10 @@ String row2Text = "";
 String row3Text = "";
 String row4Text = "";
 
-//----------- Program 3 vars -----------
 
+
+
+//----------- Program 3 vars -----------
 //LCD CustomChar
 byte arrow[] = {
   B00000,
@@ -175,10 +166,17 @@ bool rgbLedsStates[] = {false,false,false};
 int menuState = 0;
 int menuPage = 0;
 
+
+
+
 //----------- Program 4 vars -----------
 unsigned long timerTime = 0;
 int timerDelay = 5000;
 int counter = 0;
+
+
+
+
 
 
 //---------------------------------
@@ -197,19 +195,19 @@ int toDec(int, int);
 
 //CallBacks for interrupts --> flags
 void redBtnCallback() {
-  redBtnPressed = true;
+  redBtnToggle = !redBtnToggle;
 }
 
 void blueBtnCallback() {
-  blueBtnPressed = true;
+  blueBtnToggle = !blueBtnToggle;
 }
 
 void greenBtnCallback() {
-  greenBtnPressed = true;
+  greenBtnToggle = !greenBtnToggle;
 }
 
 void blackBtnCallback() {
-  blackBtnPressed = true;
+  blackBtnToggle = !blackBtnToggle;
 }
 
 /* ----------------------------------
@@ -231,39 +229,6 @@ void clearRgbLeds() {
  
 //Interrupt check --> Buttons
 void checkInter() {
-   //RED BUTTON
-  if(redBtnPressed && redBtnWait < millis()) {
-    redBtnPressed = false;
-    redBtnWait = millis() + btnWaitDelay;
-
-    redBtnToggle = !redBtnToggle; 
-  }
-
-  //BLUE BUTTON
-  if(blueBtnPressed && blueBtnWait < millis()) {
-    blueBtnPressed = false;
-    blueBtnWait = millis() + btnWaitDelay;
-
-    blueBtnToggle = !blueBtnToggle;
-  }
-
-  //GREEN BUTTON
-  if(greenBtnPressed && greenBtnWait < millis()) {
-    greenBtnPressed = false;
-    greenBtnWait = millis() + btnWaitDelay;
-
-    greenBtnToggle = !greenBtnToggle;
-  }
-
-  //BLACK BUTTON
-  if(blackBtnPressed && blackBtnWait < millis()) {
-    blackBtnPressed = false;
-    blackBtnWait = millis() + btnWaitDelay;
-
-    blackBtnToggle = !blackBtnToggle;
-  }
-
-
   //ENCODER BUTTON
   reBtnPressed = !digitalRead(reBtn);
   if(reBtnPressed && !reBtnPressedlast && reBtnWait < millis()) {
@@ -276,13 +241,6 @@ void checkInter() {
 		//CODE
 	}
 	reBtnPressedlast = !digitalRead(reBtn);
-
-
-  //Deactivate any non-actual presses
-  redBtnPressed = false;
-  blueBtnPressed = false;
-  greenBtnPressed = false;
-  blackBtnPressed = false;
 
   reBtnPressed = false;
 }
@@ -585,10 +543,10 @@ void setup() {
   pinMode(yellowLed, OUTPUT);
 
   //Interrupts (Buttons) init
-  attachInterrupt(digitalPinToInterrupt(redBtn), redBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(blueBtn), blueBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(greenBtn), greenBtnCallback, RISING);
-  attachInterrupt(digitalPinToInterrupt(blackBtn), blackBtnCallback, RISING);
+  attachInterrupt(digitalPinToInterrupt(redBtn), redBtnCallback, FALLING);
+  attachInterrupt(digitalPinToInterrupt(blueBtn), blueBtnCallback, FALLING);
+  attachInterrupt(digitalPinToInterrupt(greenBtn), greenBtnCallback, FALLING);
+  attachInterrupt(digitalPinToInterrupt(blackBtn), blackBtnCallback, FALLING);
 
   //Rotary encoder
   pinMode(dt, INPUT);
@@ -631,7 +589,6 @@ void loop() {
   int switch1State = digitalRead(switch1);
   int switch2State = digitalRead(switch2);
   if((switch1State != lastSwitch1State) || (switch2State != lastSwitch2State)) {
-    displayChanged = true;
     lastSwitch1State = switch1State;
     lastSwitch2State = switch2State;
     programState = toDec(switch1State, switch2State);
