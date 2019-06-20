@@ -11,10 +11,10 @@
 //-------------------------------
 
 //Buttons
-const int redBtn = 3; //INT 5
-const int blueBtn = 2; //INT 4
-const int greenBtn = 18; //INT 3
-const int blackBtn = 19; //INT 2
+const int redBtn = 3; //INT 5 //1
+const int blueBtn = 2; //INT 4 //2
+const int greenBtn = 18; //INT 3 //3
+const int blackBtn = 19; //INT 2 //4
 
 //Two-pos switches
 const int switch1 = 53; //SWITCH1
@@ -41,10 +41,10 @@ bool cw = false;
 const int pos = 35;
 
 //RGB Led
-const int rgbRed = 32; 
-const int rgbGreen = 33;
-const int rgbBlue = 34;
-const int rgbLeds[] = {32,33,34};
+const int rgbRed = 44; 
+const int rgbGreen = 46;
+const int rgbBlue = 45;
+const int rgbLeds[] = {44,46,45};
 
 //--------------------------------------
 //---------- END OF CONSTANTS ----------
@@ -98,6 +98,9 @@ bool greenBtnChanged = false;
 bool blackBtnChanged = false;
 bool reBtnChanged = false;
 
+//Switches change indicators
+bool switchChange = false;
+
 //Timers
 //Debounce delay --> encoder
 int btnWaitDelay = 50;
@@ -120,9 +123,6 @@ int pirState = 0;
 int posLaststate = 0;
 int posState = 0;
 
-//Switch change indicator
-bool switchChange = false;
-
 //----------- Program state -----------
 int programState = 0;
 
@@ -132,8 +132,57 @@ int programState = 0;
 
 
 //----------- Program 1 vars -----------
+int encoderMode = 0;
+
+int redState = 0;
+int redLaststate = 0;
+
+int blueState = 0;
+int blueLaststate = 0;
+
+int greenState = 0;
+int greenLaststate = 0;
+
+unsigned long redWait = 0;
+unsigned long greenWait = 0;
+unsigned long blueWait = 0;
+
+int rgbLedDelay = 100;
+
+byte arrow[] = {
+  B00000,
+  B00100,
+  B00110,
+  B11111,
+  B11111,
+  B00110,
+  B00100,
+  B00000
+};
+
+byte ball[] = {
+  B00000,
+  B01110,
+  B11111,
+  B11111,
+  B11111,
+  B11111,
+  B01110,
+  B00000
+};
 
 //----------- Program 2 vars -----------
+String secret = "411231";
+String checkPass = "";
+unsigned long passWait = 0;
+int passDelay = 5000;
+
+bool alarmState = false;
+bool alarmLastState = false;
+
+unsigned long alarmWait = 0;
+int alarmDelay = 150;
+bool alarmLedState = false;
 
 //----------- Program 3 vars -----------
 
@@ -221,11 +270,227 @@ int toDec(int a, int b) {
  * ---------- PROGRAM METHODS ----------
  * ------------------------------------- */
 void programState1() {
+  if(Serial.available()) {
+    String data = Serial.readString();
 
+    char *pch;
+    char dataC[50];
+
+    strcpy(dataC, data.c_str());
+
+    pch = strtok(dataC, ";");
+    redState = atoi(pch);
+    if(redState > 255)
+      redState = 255;
+    else if(redState < 0) {
+      redState = 0;
+    }
+    Serial.println("Red led: "+String(redState));
+
+    pch = strtok(NULL, ";");
+    greenState = atoi(pch);
+    if(greenState > 255)
+      greenState = 255;
+    else if(greenState < 0) {
+      greenState = 0;
+    }
+    Serial.println("Green led: "+String(greenState));
+
+    pch = strtok(NULL, ";");
+    blueState = atoi(pch);
+    if(blueState > 255)
+      blueState = 255;
+    else if(blueState < 0) {
+      blueState = 0;
+    }
+    Serial.println("Blue led: "+String(blueState));
+  }
+
+  if(reBtnChanged) {
+    if(encoderMode == 0) {
+      encoderMode = encoderPos+1;
+      lcd.setCursor(0,encoderPos);
+      lcd.write(1);
+    }
+    else {
+      encoderPos = encoderMode-1;
+      encoderMode = 0;
+      lcd.setCursor(0,encoderPos);
+      lcd.write(0);
+    }
+  }
+
+  if(encoderChange) {
+    if(encoderPos > 2) {
+      encoderPos = 0;
+    }
+    else if(encoderPos < 0) {
+      encoderPos = 2;
+    }
+
+    //Cursor things
+    if(encoderMode == 0) {
+      lcd.setCursor(0,0);
+      lcd.print(" ");
+      lcd.setCursor(0,1);
+      lcd.print(" ");
+      lcd.setCursor(0,2);
+      lcd.print(" ");
+      lcd.setCursor(0,3);
+      lcd.print(" ");
+
+      lcd.setCursor(0,encoderPos);
+      lcd.write(0);
+    }
+    else {
+      if(encoderMode == 1) {
+        if(cw)
+          redState++;
+        else
+          redState--;
+
+        if(redState < 0)
+          redState = 255;
+        else if(redState > 255)
+          redState = 0;
+      }
+
+      else if(encoderMode == 2) {
+        if(cw)
+          greenState++;
+        else
+          greenState--;
+
+        if(greenState < 0)
+          greenState = 255;
+        else if(greenState > 255)
+          greenState = 0;
+      }
+
+      else if(encoderMode == 3) {
+        if(cw)
+          blueState++;
+        else
+          blueState--;
+
+        if(blueState < 0)
+          blueState = 255;
+        else if(blueState > 255)
+          blueState = 0;
+      }
+    }
+  }
+  
+  if(switchChange || redLaststate != redState) {
+    redLaststate = redState;
+
+    lcd.setCursor(2,0);
+    lcd.print("RED Value: "+String(redState)+"   ");
+    analogWrite(rgbRed, redState);
+  }
+  if(switchChange || greenLaststate != greenState) {
+    greenLaststate = greenState;
+
+    lcd.setCursor(2,1);
+    lcd.print("GREEN Value: "+String(greenState)+"   ");
+    analogWrite(rgbGreen, greenState);
+  }
+  if(switchChange || blueLaststate != blueState) {
+    blueLaststate = blueState;
+
+    lcd.setCursor(2,2);
+    lcd.print("BLUE Value: "+String(blueState)+"   ");
+    analogWrite(rgbBlue, blueState);
+  }
 }
 
 void programState2() {
+  //Pokud je alarm ON
+  if(alarmState) {
+    if(alarmWait < millis()) {
+      alarmWait = millis() + alarmDelay;
 
+      alarmLedState = !alarmLedState;
+      digitalWrite(redLed, alarmLedState);
+    }
+
+    //Pokud se alarm zrovna zapl -->
+    if(alarmState != alarmLastState || switchChange) {
+      alarmLastState = alarmState;
+      lcd.setCursor(0,0);
+      lcd.print("Alarm ON ");
+      lcd.setCursor(0,1);
+      lcd.print("ENTER PASSWORD: ");
+    }
+  }
+  else {
+    if(alarmState != alarmLastState || switchChange) {
+      alarmLastState = alarmState;
+      lcd.setCursor(0,0);
+      lcd.print("Alarm off");
+    }
+
+    alarmLedState = false;
+    digitalWrite(redLed, alarmLedState);
+  }
+
+  //Zapni alarm na PIR a shock
+  if(pirChange || posChange) {
+    alarmState = true;
+  }
+
+  if(redBtnChanged) {
+    checkPass += "1";
+    passWait = millis() + passDelay;
+
+    lcd.setCursor(0,2);
+    lcd.print(checkPass);
+  }
+  else if(blueBtnChanged) {
+    checkPass += "2";
+    passWait = millis() + passDelay;
+
+    lcd.setCursor(0,2);
+    lcd.print(checkPass);
+  }
+  else if(greenBtnChanged) {
+    checkPass += "3";
+    passWait = millis() + passDelay;
+
+    lcd.setCursor(0,2);
+    lcd.print(checkPass);
+  }
+  else if(blackBtnChanged) {
+    checkPass += "4";
+    passWait = millis() + passDelay;
+
+    lcd.setCursor(0,2);
+    lcd.print(checkPass);
+  }
+
+  if(checkPass != "") {
+    lcd.setCursor(0,3);
+    int cas = (int)round((passWait-millis())/(unsigned long)1000);
+    lcd.print(String(cas > 0 ? cas : 0) + "s left.");
+  }
+
+  if(passWait < millis() && checkPass != "") {
+    if(checkPass == secret) {
+      alarmState = false;
+      lcd.setCursor(0,1);
+      lcd.print("                    ");
+    }
+    lcd.setCursor(0,2);
+    lcd.print("                    ");
+    lcd.setCursor(0,3);
+    lcd.print("                    ");
+    checkPass = "";
+    lcd.setCursor(0,2);
+    lcd.print(String(alarmState ? "INCORRECT" : "CORRECT")+" PASSWORD");
+    delay(1000);
+    lcd.setCursor(0,2);
+    lcd.print("                    ");
+  }
 }
 
 void programState3() {
@@ -285,11 +550,15 @@ void setup() {
   //POS
   pinMode(pos, INPUT_PULLUP);
 
+  //Setup indicator
+  switchChange = true;
+
   //LCD init
   lcd.init();
   lcd.backlight();
   
-  //lcd.createChar(0, arrow);
+  lcd.createChar(0, arrow);
+  lcd.createChar(1, ball);
 }
 
 void loop() {
@@ -305,11 +574,6 @@ void loop() {
     programState = toDec(switch1State, switch2State);
 
     switchChange = true;
-
-    //POZOR MUZE DELAT BORDEL
-    encoderChange = true;
-    pirChange = true;
-    posChange = true;
 
     lcd.clear();
     clearLeds();
@@ -387,6 +651,7 @@ void loop() {
   else if(programState == 3) {
     programState4();
   }
+
 
   //Changed vars
   encoderChange = false;
